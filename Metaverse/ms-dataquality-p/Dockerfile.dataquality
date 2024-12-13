@@ -1,0 +1,44 @@
+# Use an official Python runtime as a parent image
+FROM python:3.10-slim
+
+# Set environment variables to ensure Python outputs everything to the terminal without buffering
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# Set the working directory inside the container
+WORKDIR /app
+
+# Install Java
+RUN apt-get update && \
+    apt-get install -y curl wget default-jdk && \
+    rm -rf /var/lib/apt/lists/*
+
+# Set JAVA_HOME environment variable
+RUN export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which java)))) && \
+    echo "JAVA_HOME=$JAVA_HOME" >> /etc/environment && \
+    export PATH="$JAVA_HOME/bin:$PATH"
+
+# Install Spark with Hadoop
+RUN curl -fSL https://archive.apache.org/dist/spark/spark-3.5.0/spark-3.5.0-bin-hadoop3.tgz -o spark.tgz && \
+    tar -xzf spark.tgz -C /opt && \
+    rm spark.tgz && \
+    mv /opt/spark-3.5.0-bin-hadoop3 /opt/spark
+
+# Set environment variables for Spark
+ENV SPARK_HOME=/opt/spark
+ENV PATH="$SPARK_HOME/bin:$PATH"
+
+# Copy the requirements file into the container
+COPY requirements.txt /app/
+
+# Install any necessary Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy the current directory contents into the container at /app
+COPY . /app/
+
+# Expose the port that the Flask app will run on
+EXPOSE 1002
+
+# Run the Flask app
+CMD ["python", "api/DataQualityAPIs.py"]
